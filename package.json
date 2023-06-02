@@ -1,9 +1,9 @@
 {
   "name": "jwt-quick",
-  "version": "1.1.0",
-  "description": "validate a jwt quickly and easily",
+  "version": "1.1.1",
+  "description": "This is a TypeScript library for verifying JSON Web Tokens (JWTs) using JSON Web Key (JWK) sets.",
   "main": "dist/index.js",
-  "types": "dist/types/*.d.ts",
+  "types": "dist/index.d.ts",
   "repository": "http://davidfischer.dev",
   "author": "David Fischer",
   "keywords": [

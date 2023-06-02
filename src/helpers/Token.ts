@@ -1,4 +1,8 @@
-// Properties are base64url encoded
+
+
+/**
+ * Represents a JSON Web Token (JWT) and provides methods for decoding and verifying its contents.
+ */
 export class Token {
     header: string;
     payload: string;
@@ -8,9 +12,4 @@ export class Token {
         this.payload = token.split(".")[1];
         this.signature = token.split(".")[2];
     }
-}
-
-export type DecodedTokenHeader = {
-    alg: string;
-    typ: string;
 }
