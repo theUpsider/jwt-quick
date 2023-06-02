@@ -16,6 +16,9 @@ export namespace jwt {
         // https://developer.mozilla.org/en-US/docs/Web/API/RsaHashedImportParams
         const hash = findHash(jwk.alg);
         // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/importKey
+        console.log(jwk);
+        console.log(algorithm);
+        console.log(hash);
         try {
             window.crypto.subtle.importKey('jwk', jwk, {
                 name: algorithm,
@@ -54,7 +57,7 @@ export namespace jwt {
             if (keys) {
                 for (const key of keys) {
                     const tkn = decodeBase64toObject<DecodedTokenHeader>(token.header);
-                    if (findAlg(key.kty) === findAlg(tkn.alg)) {
+                    if (tkn.kid === key.kid) {
                         const isValid = await jwt.verifyTokenByJWK(token, key);
                         if (isValid) {
                             return true;

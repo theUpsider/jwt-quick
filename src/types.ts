@@ -5,6 +5,7 @@
 export type DecodedTokenHeader = {
     alg: string;
     typ: string;
+    kid: string;
 }
 /**
  * JWK Spec: https://www.rfc-editor.org/rfc/rfc7517#page-3
