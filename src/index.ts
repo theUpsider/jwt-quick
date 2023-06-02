@@ -19,33 +19,17 @@ export namespace jwt {
         console.log(jwk);
         console.log(algorithm);
         console.log(hash);
-        try {
-            window.crypto.subtle.importKey('jwk', jwk, {
-                name: algorithm,
-                hash: hash
-            }, true, ['verify']).then((key) => {
-                // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/verify
-                window.crypto.subtle.verify(
-                    algorithm === 'ECDSA' ? { name: algorithm, hash: hash } : algorithm,
-                    key,
-                    base64url.parse(jwsSignature, { loose: true }),
-                    new TextEncoder().encode(jwsSigningInput))
-                    .then((isValid) => {
-                        return isValid;
-                    }
-                    ).catch((error) => {
-                        console.log(error);
-                        return false;
-                    }
-                    );
-            }).catch((error) => {
-                console.log(error);
-                return false;
-            });
-        } catch (error) {
-            console.log(error);
-            return false;
-        }
+        const key = await window.crypto.subtle.importKey('jwk', jwk, {
+            name: algorithm,
+            hash: hash
+        }, true, ['verify'])
+        // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/verify
+        const isValid = await window.crypto.subtle.verify(
+            algorithm === 'ECDSA' ? { name: algorithm, hash: hash } : algorithm,
+            key,
+            base64url.parse(jwsSignature, { loose: true }),
+            new TextEncoder().encode(jwsSigningInput))
+        return isValid;
     }
 
 
@@ -55,16 +39,14 @@ export namespace jwt {
             const jwkset: JWKSet = await res.json();
             const keys = jwkset?.keys;
             if (keys) {
-                for (const key of keys) {
+                const keyPromises = keys.map(async (key) => {
                     const tkn = decodeBase64toObject<DecodedTokenHeader>(token.header);
                     if (tkn.kid === key.kid) {
-                        const isValid = await jwt.verifyTokenByJWK(token, key);
-                        if (isValid) {
-                            return true;
-                        }
+                        return await jwt.verifyTokenByJWK(token, key);
                     }
-                    return false;
-                }
+                })
+                const results = await Promise.all(keyPromises);
+                return results.some((result) => result === true);
             }
             return false;
         } catch (error) {
