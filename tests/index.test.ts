@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, jest } from '@jest/globals';
-import { jwt, JWK, Token } from "../src/index";
-
+import { Token } from '../src/helpers/Token';
+import { jwt } from '../src/index';
+import { JWK } from '../src/types';
 
 /* Disclaimer: You should use your own jwksUrl and token for testing
  * This is just a dummy token and jwksUrl

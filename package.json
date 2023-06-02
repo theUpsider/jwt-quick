@@ -1,6 +1,6 @@
 {
   "name": "jwt-quick",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "This is a TypeScript library for verifying JSON Web Tokens (JWTs) using JSON Web Key (JWK) sets.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,7 +9,9 @@
   "keywords": [
     "jwt",
     "jwks",
-    "validate"
+    "validate",
+    "jwt url",
+    "jwts url"
   ],
   "license": "MIT",
   "scripts": {
