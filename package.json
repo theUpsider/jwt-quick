@@ -1,9 +1,9 @@
 {
   "name": "jwt-quick",
-  "version": "1.2.4",
-  "description": "This is a TypeScript library for verifying JSON Web Tokens (JWTs) using JSON Web Key (JWK) sets.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "version": "1.2.7",
+  "description": "This is a library for verifying JSON Web Tokens (JWTs) using JSON Web Key (JWK) sets.",
+  "main": "index.js",
+  "types": "types/index.d.ts",
   "repository": "https://github.com/theUpsider/jwt-quick",
   "author": "David Fischer",
   "keywords": [
@@ -16,8 +16,7 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
-    "test": "jest",
-    "publish": "yarn build && cp package.json dist/package.json && cp README.md dist/README.md && cd dist && npm publish && cd .. && rm dist/package.json"
+    "test": "jest"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",

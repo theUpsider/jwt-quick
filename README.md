@@ -1,7 +1,6 @@
-# JWT Verification Library
+# JWT - JWKS Verification Library
 
-This is a TypeScript library for verifying JSON Web Tokens (JWTs) using JSON Web Key (JWK) sets.
-
+This is a TypeScript library for verifying JSON Web Tokens (JWTs) using JSON Web Key (JWK) sets URL endpoints.
 ## Installation
 
 You can install the library using [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/):
