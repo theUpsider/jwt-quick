@@ -1,6 +1,10 @@
 # JWT - JWKS Verification Library
 
-This is a TypeScript library for verifying JSON Web Tokens (JWTs) using JSON Web Key (JWK) sets URL endpoints.
+This is a TypeScript library for verifying JSON Web Tokens (JWTs) using JSON Web Key (JWK) sets URL endpoints in the browser.
+
+#### Note
+This library uses the [Web Crypto Subtle API](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/subtle) to verify JWTs. Cryptography is a complex subject, and it is easy to make mistakes. This is a personal project, and should be used with caution or in controlled environments. I am not a cryptography expert, and I cannot guarantee the security of this library. Please use at your own risk.
+
 ## Installation
 
 You can install the library using [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/):
@@ -85,7 +89,7 @@ To use the library with a different algorithm, you will need to modify the `algD
 
 ## Support
 If you appreciate this library, please consider [buying me a coffee](https://www.buymeacoffee.com/theupsider).
-Feel free to create an issue if you have any questions or suggestions.
+Feel free to create an issue if you have any questions or suggestions. Actively looking for security experts to review the code!
 
 ## License
 
