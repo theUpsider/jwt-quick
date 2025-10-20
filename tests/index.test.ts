@@ -3,7 +3,7 @@ import { TextEncoder } from 'node:util';
 import { Buffer } from 'buffer';
 import { Token } from '../src/helpers/Token';
 import { jwt } from '../src/index';
-import { JWK } from '../src/types';
+import { JWK, VerificationOptions } from '../src/types';
 
 /* Disclaimer: You should use your own jwksUrl and token for testing
  * This is just a dummy token and jwksUrl
@@ -560,6 +560,367 @@ describe("jwt", () => {
             (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(false);
             const result = await jwt.verifyTokenByJWKS(jwksUrl, token);
             expect(result).toBe(false);
+        });
+    });
+
+    describe("JWT Claims Validation Tests", () => {
+        const validJWK: JWK = {
+            kty: "RSA",
+            n: "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
+            e: "AQAB",
+            alg: "RS256",
+        };
+
+        describe("Expiration (exp) Validation", () => {
+            it("should reject expired token", async () => {
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    sub: "1234567890",
+                    exp: now - 3600 // Expired 1 hour ago
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                await expect(jwt.verifyTokenByJWK(token, validJWK, { validateExpiration: true }))
+                    .rejects.toThrow("Token has expired");
+            });
+
+            it("should accept valid token with future expiration", async () => {
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    sub: "1234567890",
+                    exp: now + 3600 // Expires in 1 hour
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                const result = await jwt.verifyTokenByJWK(token, validJWK, { validateExpiration: true });
+                expect(result).toBe(true);
+            });
+
+            it("should handle clock tolerance for expiration", async () => {
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    sub: "1234567890",
+                    exp: now - 30 // Expired 30 seconds ago
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                // With 60 seconds tolerance, should pass
+                const result = await jwt.verifyTokenByJWK(token, validJWK, { 
+                    validateExpiration: true, 
+                    clockTolerance: 60 
+                });
+                expect(result).toBe(true);
+            });
+
+            it("should skip expiration validation when disabled", async () => {
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    sub: "1234567890",
+                    exp: now - 3600 // Expired
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                const result = await jwt.verifyTokenByJWK(token, validJWK, { validateExpiration: false });
+                expect(result).toBe(true);
+            });
+
+            it("should reject token with non-numeric exp claim", async () => {
+                const payload = {
+                    sub: "1234567890",
+                    exp: "invalid" as any
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                await expect(jwt.verifyTokenByJWK(token, validJWK, { validateExpiration: true }))
+                    .rejects.toThrow("exp claim must be a number");
+            });
+        });
+
+        describe("Not Before (nbf) Validation", () => {
+            it("should reject token used before nbf time", async () => {
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    sub: "1234567890",
+                    nbf: now + 3600 // Not valid for another hour
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                await expect(jwt.verifyTokenByJWK(token, validJWK, { validateNotBefore: true }))
+                    .rejects.toThrow("Token not yet valid");
+            });
+
+            it("should accept token after nbf time", async () => {
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    sub: "1234567890",
+                    nbf: now - 3600 // Valid since 1 hour ago
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                const result = await jwt.verifyTokenByJWK(token, validJWK, { validateNotBefore: true });
+                expect(result).toBe(true);
+            });
+
+            it("should handle clock tolerance for nbf", async () => {
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    sub: "1234567890",
+                    nbf: now + 30 // Not valid for 30 seconds
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                // With 60 seconds tolerance, should pass
+                const result = await jwt.verifyTokenByJWK(token, validJWK, { 
+                    validateNotBefore: true, 
+                    clockTolerance: 60 
+                });
+                expect(result).toBe(true);
+            });
+
+            it("should skip nbf validation when disabled", async () => {
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    sub: "1234567890",
+                    nbf: now + 3600 // Not yet valid
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                const result = await jwt.verifyTokenByJWK(token, validJWK, { validateNotBefore: false });
+                expect(result).toBe(true);
+            });
+
+            it("should reject token with non-numeric nbf claim", async () => {
+                const payload = {
+                    sub: "1234567890",
+                    nbf: "invalid" as any
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                await expect(jwt.verifyTokenByJWK(token, validJWK, { validateNotBefore: true }))
+                    .rejects.toThrow("nbf claim must be a number");
+            });
+        });
+
+        describe("Issued At (iat) Validation", () => {
+            it("should reject token issued in the future", async () => {
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    sub: "1234567890",
+                    iat: now + 3600 // Issued 1 hour in the future
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                await expect(jwt.verifyTokenByJWK(token, validJWK, {}))
+                    .rejects.toThrow("Token issued in the future");
+            });
+
+            it("should accept token issued in the past", async () => {
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    sub: "1234567890",
+                    iat: now - 3600 // Issued 1 hour ago
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                const result = await jwt.verifyTokenByJWK(token, validJWK, {});
+                expect(result).toBe(true);
+            });
+
+            it("should handle clock tolerance for iat", async () => {
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    sub: "1234567890",
+                    iat: now + 30 // Issued 30 seconds in the future
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                // With 60 seconds tolerance, should pass
+                const result = await jwt.verifyTokenByJWK(token, validJWK, { clockTolerance: 60 });
+                expect(result).toBe(true);
+            });
+
+            it("should reject token with non-numeric iat claim", async () => {
+                const payload = {
+                    sub: "1234567890",
+                    iat: "invalid" as any
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                await expect(jwt.verifyTokenByJWK(token, validJWK, {}))
+                    .rejects.toThrow("iat claim must be a number");
+            });
+        });
+
+        describe("Combined Claims Validation", () => {
+            it("should validate all claims together", async () => {
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    sub: "1234567890",
+                    iat: now - 100,
+                    nbf: now - 50,
+                    exp: now + 3600
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                const result = await jwt.verifyTokenByJWK(token, validJWK, {
+                    validateExpiration: true,
+                    validateNotBefore: true
+                });
+                expect(result).toBe(true);
+            });
+
+            it("should use custom currentTime for testing", async () => {
+                const testTime = 1609459200; // 2021-01-01 00:00:00 UTC
+                const payload = {
+                    sub: "1234567890",
+                    iat: testTime - 100,
+                    nbf: testTime - 50,
+                    exp: testTime + 3600
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                const result = await jwt.verifyTokenByJWK(token, validJWK, {
+                    validateExpiration: true,
+                    validateNotBefore: true,
+                    currentTime: testTime
+                });
+                expect(result).toBe(true);
+            });
+        });
+
+        describe("JWKS with Claims Validation", () => {
+            it("should validate claims when using JWKS", async () => {
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    sub: "1234567890",
+                    exp: now - 3600 // Expired
+                };
+                const token: Token = {
+                    header: "eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCIsICJraWQiOiAiMjAxMS0wNC0yOSJ9",
+                    payload: Buffer.from(JSON.stringify(payload)).toString('base64'),
+                    signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                };
+                const jwksUrl = new URL("https://example.com/.well-known/jwks.json");
+                
+                (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+                (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+                
+                // Should return false because token is expired
+                const result = await jwt.verifyTokenByJWKS(jwksUrl, token, { validateExpiration: true });
+                expect(result).toBe(false);
+            });
         });
     });
 });

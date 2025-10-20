@@ -1,18 +1,25 @@
 import { base64url } from 'rfc4648';
-import { decodeBase64toObject, findAlg, findHash } from "./helpers/helper";
+import { decodeBase64toObject, findAlg, findHash, validateClaims } from "./helpers/helper";
 import { Token } from './helpers/Token';
-import { JWK, JWKSet, DecodedTokenHeader } from './types';
+import { JWK, JWKSet, DecodedTokenHeader, DecodedTokenPayload, VerificationOptions } from './types';
 
 export { Token } from './helpers/Token';
+export type { VerificationOptions, DecodedTokenPayload } from './types';
 
 
 export namespace jwt {
 
-    export const verifyTokenByJWK = async (token: Token, jwk: JWK) => {
+    export const verifyTokenByJWK = async (token: Token, jwk: JWK, options?: VerificationOptions) => {
         try {
             // Validate JWK has required algorithm field
             if (!jwk.alg) {
                 throw new Error("JWK must have an 'alg' field");
+            }
+
+            // Validate claims if options are provided
+            if (options && (options.validateExpiration !== false || options.validateNotBefore !== false)) {
+                const payload = decodeBase64toObject<DecodedTokenPayload>(token.payload);
+                validateClaims(payload, options);
             }
 
             const jwsSigningInput = `${token.header}.${token.payload}`;
@@ -39,7 +46,7 @@ export namespace jwt {
     }
 
 
-    export const verifyTokenByJWKS = async (jwksUrl: URL, token: Token) => {
+    export const verifyTokenByJWKS = async (jwksUrl: URL, token: Token, options?: VerificationOptions) => {
         try {
             const res = await fetch(jwksUrl.toString());
             const jwkset: JWKSet = await res.json();
@@ -55,7 +62,7 @@ export namespace jwt {
                 const keyPromises = keys.map(async (key) => {
                     if (tkn.kid === key.kid) {
                         try {
-                            return await jwt.verifyTokenByJWK(token, key);
+                            return await jwt.verifyTokenByJWK(token, key, options);
                         } catch (error) {
                             // If verification fails for this key, return false
                             return false;
