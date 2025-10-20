@@ -47,7 +47,6 @@ export namespace jwt {
             }
             return false;
         } catch (error) {
-            console.log(error);
             return false;
         }
     }

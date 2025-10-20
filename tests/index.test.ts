@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it, jest } from '@jest/globals';
+import { TextEncoder } from 'util';
 import { Token } from '../src/helpers/Token';
 import { jwt } from '../src/index';
 import { JWK } from '../src/types';
@@ -19,8 +20,7 @@ Object.defineProperty(globalThis, 'crypto', {
 });
 
 // Add TextEncoder polyfill for jsdom environment
-if (typeof TextEncoder === 'undefined') {
-    const { TextEncoder } = require('util');
+if (typeof globalThis.TextEncoder === 'undefined') {
     globalThis.TextEncoder = TextEncoder;
 }
 
