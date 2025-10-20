@@ -7,6 +7,22 @@ export type DecodedTokenHeader = {
     typ: string;
     kid: string;
 }
+
+/**
+ * Represents the decoded payload of a JSON Web Token (JWT).
+ * The payload contains claims about the entity and additional data.
+ */
+export type DecodedTokenPayload = {
+    sub?: string;
+    iat?: number; // Issued At
+    exp?: number; // Expiration Time
+    nbf?: number; // Not Before
+    iss?: string; // Issuer
+    aud?: string | string[]; // Audience
+    jti?: string; // JWT ID
+    [key: string]: any; // Allow additional custom claims
+}
+
 /**
  * JWK Spec: https://www.rfc-editor.org/rfc/rfc7517#page-3
  */
@@ -28,4 +44,33 @@ export type JWK = {
  */
 export type JWKSet = {
     keys: JWK[]; // "keys" (Public Keys) Parameter - REQUIRED.  The "keys" (public keys) parameter contains the set of public keys.  The value of the "keys" parameter is an array of JWK values.  By default, the set of public keys represents the public keys used to verify any JWS object
+}
+
+/**
+ * Options for JWT verification
+ */
+export type VerificationOptions = {
+    /**
+     * Whether to validate the expiration time (exp claim)
+     * Default: true
+     */
+    validateExpiration?: boolean;
+    
+    /**
+     * Whether to validate the not before time (nbf claim)
+     * Default: true
+     */
+    validateNotBefore?: boolean;
+    
+    /**
+     * Clock tolerance in seconds to account for clock skew
+     * Default: 0
+     */
+    clockTolerance?: number;
+    
+    /**
+     * Current time override for testing purposes (Unix timestamp in seconds)
+     * If not provided, uses the current system time
+     */
+    currentTime?: number;
 }
