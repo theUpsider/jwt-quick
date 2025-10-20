@@ -16,9 +16,6 @@ export namespace jwt {
         // https://developer.mozilla.org/en-US/docs/Web/API/RsaHashedImportParams
         const hash = findHash(jwk.alg);
         // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/importKey
-        console.log(jwk);
-        console.log(algorithm);
-        console.log(hash);
         const key = await window.crypto.subtle.importKey('jwk', jwk, {
             name: algorithm,
             hash: hash
@@ -27,7 +24,7 @@ export namespace jwt {
         const isValid = await window.crypto.subtle.verify(
             algorithm === 'ECDSA' ? { name: algorithm, hash: hash } : algorithm,
             key,
-            base64url.parse(jwsSignature, { loose: true }),
+            base64url.parse(jwsSignature, { loose: true }) as BufferSource,
             new TextEncoder().encode(jwsSigningInput))
         return isValid;
     }
