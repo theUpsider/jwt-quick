@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, jest } from '@jest/globals';
-import { TextEncoder } from 'util';
+import { TextEncoder } from 'node:util';
 import { Token } from '../src/helpers/Token';
 import { jwt } from '../src/index';
 import { JWK } from '../src/types';
