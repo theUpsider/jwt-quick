@@ -131,7 +131,7 @@ Verifies a JWT using a single JWK.
 - `jwk`: The JWK to use for verification.
 - `options`: (Optional) Verification options for claims validation.
 
-Returns a `Promise` that resolves to `true` if the JWT is valid, or `false` otherwise. Throws an error if validation fails due to security issues.
+Returns a `Promise` that resolves to `true` if the JWT is valid. Throws an error if the token fails validation due to security issues (invalid algorithm, malformed structure, failed claims validation, etc.).
 
 **Example:**
 ```typescript
@@ -140,6 +140,7 @@ try {
         validateExpiration: true,
         clockTolerance: 30
     });
+    console.log('Token is valid:', isValid);
 } catch (error) {
     console.error('Token validation failed:', error.message);
 }
@@ -208,7 +209,7 @@ This library currently supports the following algorithms for verifying JSON Web 
 
 These algorithms are based on the [JSON Web Algorithms (JWA)](https://www.rfc-editor.org/rfc/rfc7518.html) specification. The library currently only supports the Required, Recommended, and Recommended+ algorithms from the specification.
 
-**Security Note:** The "none" algorithm is explicitly rejected to prevent signature bypass attacks.
+**Security Note:** The "none" algorithm is explicitly rejected (case-insensitive) to prevent signature bypass attacks.
 
 To use the library with a different algorithm, you will need to modify the `algDict` and `hashDict` objects in the `helper.ts` file to include the new algorithm and its corresponding hash algorithm. You will also need to modify the `verifyTokenByJWK` and `verifyTokenByJWKS` functions to support the new algorithm.
 
@@ -228,7 +229,7 @@ When using this library, follow these security best practices:
 This library is designed to handle various edge cases and prevent common JWT attacks:
 
 ### Algorithm Confusion Attacks
-- Rejects "none", "None", "NONE" algorithm variants
+- Rejects "none" algorithm (case-insensitive: "none", "None", "NONE", etc.)
 - Validates algorithm matches between token header and JWK
 - Throws errors for unsupported algorithms
 
