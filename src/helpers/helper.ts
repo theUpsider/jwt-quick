@@ -9,7 +9,13 @@ const algDict: { [id: string]: string; } = {
     "ES384": "ECDSA", // Optional
     "ES512": "ECDSA", // Optional
 }
+
 const findAlg = (alg: string): string => {
+    // Explicitly reject "none" algorithm to prevent security bypass
+    if (!alg || alg.toLowerCase() === "none") {
+        throw new Error("Algorithm 'none' is not allowed");
+    }
+    
     if (algDict[alg]) {
         return algDict[alg];
     } else {
@@ -35,10 +41,19 @@ const findHash = (hash: string): string => {
 }
 
 const decodeBase64toObject = <T>(base64: string): T => {
-    return JSON.parse(decodeBase64(base64));
+    try {
+        return JSON.parse(decodeBase64(base64));
+    } catch (error) {
+        throw new Error("Failed to decode base64 or parse JSON: " + (error instanceof Error ? error.message : String(error)));
+    }
 }
+
 const decodeBase64 = (b64Encoded: string): string => {
-    return Buffer.from(b64Encoded, 'base64').toString()
+    try {
+        return Buffer.from(b64Encoded, 'base64').toString();
+    } catch (error) {
+        throw new Error("Failed to decode base64: " + (error instanceof Error ? error.message : String(error)));
+    }
 }
 
 export { findAlg, findHash, decodeBase64toObject, decodeBase64 }

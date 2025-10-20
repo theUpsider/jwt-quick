@@ -9,24 +9,33 @@ export { Token } from './helpers/Token';
 export namespace jwt {
 
     export const verifyTokenByJWK = async (token: Token, jwk: JWK) => {
+        try {
+            // Validate JWK has required algorithm field
+            if (!jwk.alg) {
+                throw new Error("JWK must have an 'alg' field");
+            }
 
-        const jwsSigningInput = `${token.header}.${token.payload}`;
-        const jwsSignature = token.signature;
-        const algorithm = findAlg(jwk.alg);
-        // https://developer.mozilla.org/en-US/docs/Web/API/RsaHashedImportParams
-        const hash = findHash(jwk.alg);
-        // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/importKey
-        const key = await window.crypto.subtle.importKey('jwk', jwk, {
-            name: algorithm,
-            hash: hash
-        }, true, ['verify'])
-        // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/verify
-        const isValid = await window.crypto.subtle.verify(
-            algorithm === 'ECDSA' ? { name: algorithm, hash: hash } : algorithm,
-            key,
-            base64url.parse(jwsSignature, { loose: true }) as BufferSource,
-            new TextEncoder().encode(jwsSigningInput))
-        return isValid;
+            const jwsSigningInput = `${token.header}.${token.payload}`;
+            const jwsSignature = token.signature;
+            const algorithm = findAlg(jwk.alg);
+            // https://developer.mozilla.org/en-US/docs/Web/API/RsaHashedImportParams
+            const hash = findHash(jwk.alg);
+            // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/importKey
+            const key = await window.crypto.subtle.importKey('jwk', jwk, {
+                name: algorithm,
+                hash: hash
+            }, true, ['verify'])
+            // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/verify
+            const isValid = await window.crypto.subtle.verify(
+                algorithm === 'ECDSA' ? { name: algorithm, hash: hash } : algorithm,
+                key,
+                base64url.parse(jwsSignature, { loose: true }) as BufferSource,
+                new TextEncoder().encode(jwsSigningInput))
+            return isValid;
+        } catch (error) {
+            // Re-throw errors for proper error handling
+            throw error;
+        }
     }
 
 
@@ -35,12 +44,24 @@ export namespace jwt {
             const res = await fetch(jwksUrl.toString());
             const jwkset: JWKSet = await res.json();
             const keys = jwkset?.keys;
-            if (keys) {
+            if (keys && keys.length > 0) {
+                const tkn = decodeBase64toObject<DecodedTokenHeader>(token.header);
+                
+                // Validate that kid exists in the token header
+                if (!tkn.kid) {
+                    return false;
+                }
+
                 const keyPromises = keys.map(async (key) => {
-                    const tkn = decodeBase64toObject<DecodedTokenHeader>(token.header);
                     if (tkn.kid === key.kid) {
-                        return await jwt.verifyTokenByJWK(token, key);
+                        try {
+                            return await jwt.verifyTokenByJWK(token, key);
+                        } catch (error) {
+                            // If verification fails for this key, return false
+                            return false;
+                        }
                     }
+                    return false;
                 })
                 const results = await Promise.all(keyPromises);
                 return results.some((result) => result === true);
