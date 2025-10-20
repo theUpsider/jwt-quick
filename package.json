@@ -1,6 +1,6 @@
 {
   "name": "jwt-quick",
-  "version": "1.3",
+  "version": "1.3.0",
   "description": "This is a library for verifying JSON Web Tokens (JWTs) using JSON Web Key (JWK) sets.",
   "main": "index.js",
   "types": "types/index.d.ts",
