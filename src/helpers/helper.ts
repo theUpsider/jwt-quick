@@ -12,8 +12,9 @@ const algDict: { [id: string]: string; } = {
 const findAlg = (alg: string): string => {
     if (algDict[alg]) {
         return algDict[alg];
-    } else
-        new Error("Unsupported algorithm" + alg);
+    } else {
+        throw new Error("Unsupported algorithm: " + alg);
+    }
 }
 
 const hashDict: { [id: string]: string; } = {
@@ -28,8 +29,9 @@ const hashDict: { [id: string]: string; } = {
 const findHash = (hash: string): string => {
     if (hashDict[hash]) {
         return hashDict[hash];
-    } else
-        new Error("Unsupported algorithm (hash)" + hash);
+    } else {
+        throw new Error("Unsupported algorithm (hash): " + hash);
+    }
 }
 
 const decodeBase64toObject = <T>(base64: string): T => {

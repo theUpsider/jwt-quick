@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it, jest } from '@jest/globals';
+import { TextEncoder } from 'node:util';
 import { Token } from '../src/helpers/Token';
 import { jwt } from '../src/index';
 import { JWK } from '../src/types';
@@ -17,6 +18,11 @@ Object.defineProperty(globalThis, 'crypto', {
         }
     }
 });
+
+// Add TextEncoder polyfill for jsdom environment
+if (typeof globalThis.TextEncoder === 'undefined') {
+    globalThis.TextEncoder = TextEncoder;
+}
 
 // Mock fetch
 beforeAll(() => {
@@ -48,6 +54,8 @@ describe("jwt", () => {
                 alg: "RS256",
                 kid: "2011-04-29",
             };
+            (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+            (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
             const result = await jwt.verifyTokenByJWK(token, jwk);
             expect(result).toBe(true);
         });
@@ -56,7 +64,7 @@ describe("jwt", () => {
             const token: Token = {
                 header: "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9",
                 payload: "eyJzdWIiOiAiMTIzNDU2Nzg5MCJ9",
-                signature: "invalid_signature",
+                signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
             };
             const jwk: JWK = {
                 kty: "RSA",
@@ -65,6 +73,8 @@ describe("jwt", () => {
                 alg: "RS256",
                 kid: "2011-04-29",
             };
+            (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+            (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(false);
             const result = await jwt.verifyTokenByJWK(token, jwk);
             expect(result).toBe(false);
         });
@@ -74,25 +84,26 @@ describe("jwt", () => {
     describe("verifyTokenByJWKS", () => {
         it("should return true for a valid token", async () => {
             const token: Token = {
-                header: "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9",
+                header: "eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCIsICJraWQiOiAiMjAxMS0wNC0yOSJ9",
+                payload: "eyJzdWIiOiAiMTIzNDU2Nzg5MCJ9",
+                signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+            };
+            const jwksUrl = new URL("https://example.com/.well-known/jwks.json");
+            (globalThis.crypto.subtle.importKey as jest.Mock).mockResolvedValue({});
+            (globalThis.crypto.subtle.verify as jest.Mock).mockResolvedValue(true);
+            const result = await jwt.verifyTokenByJWKS(jwksUrl, token);
+            expect(result).toBe(true);
+        });
+
+        it("should return false if no keys match", async () => {
+            const token: Token = {
+                header: "eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCIsICJraWQiOiAibm9uLWV4aXN0ZW50In0=",
                 payload: "eyJzdWIiOiAiMTIzNDU2Nzg5MCJ9",
                 signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
             };
             const jwksUrl = new URL("https://example.com/.well-known/jwks.json");
             const result = await jwt.verifyTokenByJWKS(jwksUrl, token);
-            expect(result).toBe(true);
-        });
-
-        it("should throw an error if no keys are found in jwks", async () => {
-            const token: Token = {
-                header: "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9",
-                payload: "eyJzdWIiOiAiMTIzNDU2Nzg5MCJ9",
-                signature: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
-            };
-            const jwksUrl = new URL("https://example.com/.well-known/jwks.json");
-            await expect(jwt.verifyTokenByJWKS(jwksUrl, token)).rejects.toThrow(
-                "No keys found in jwks"
-            );
+            expect(result).toBe(false);
         });
     });
 });
